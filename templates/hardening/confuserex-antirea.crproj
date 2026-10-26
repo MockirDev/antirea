@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  confuserex-antirea.crproj — ConfuserEx protection profile for antirea
+  
+  Usage:
+    1. Install ConfuserEx: https://github.com/mkbel/ConfuserEx
+    2. Copy this file to your project root
+    3. Edit <inputDir> and <outputDir> to match your build output
+    4. Run: ConfuserEx.CLI.exe -n confuserex-antirea.crproj
+    
+  Or integrate into your .csproj build pipeline:
+    <Target Name="Obfuscate" AfterTargets="Build" Condition="'$(Configuration)'=='Release'">
+      <Exec Command="ConfuserEx.CLI.exe -n $(ProjectDir)confuserex-antirea.crproj" />
+    </Target>
+-->
+<ConfuserProject BaseDir="." OutputDir="bin\Release\protected">
+
+  <!-- Edit these paths to match your project -->
+  <Packer id="compressor" />
+
+  <Module path="bin\Release\YourAssembly.dll">
+
+    <!--
+      RULE 1 — Aggressive protection for all members by default
+    -->
+    <Rule pattern="true" inherit="false">
+
+      <!-- Anti-tamper: prevents patching the assembly at runtime -->
+      <Protection id="anti tamper" />
+
+      <!-- Anti-dump: prevents memory dumping of the assembly -->
+      <Protection id="anti dump" />
+
+      <!-- Anti-debug: detects debugger attachment and exits -->
+      <Protection id="anti debug" />
+
+      <!-- Control flow: flattens method bodies, defeats decompiler CFG recovery -->
+      <Protection id="ctrl flow">
+        <Argument name="intensity" value="5" />
+      </Protection>
+
+      <!-- Name obfuscation: renames all types, methods, fields, properties -->
+      <Protection id="rename">
+        <Argument name="mode" value="sequential" />
+        <Argument name="renameArgs" value="true" />
+        <Argument name="renPub" value="true" />
+      </Protection>
+
+      <!-- Constant encryption: encrypts string and numeric literals -->
+      <Protection id="constants">
+        <Argument name="mode" value="dynamic" />
+      </Protection>
+
+      <!-- Reference proxy: replaces direct calls with indirect proxies -->
+      <Protection id="ref proxy">
+        <Argument name="mode" value="mild" />
+      </Protection>
+
+      <!-- Resources encryption -->
+      <Protection id="resources" />
+
+      <!-- Watermark removed — do not leave ConfuserEx signature -->
+      <!-- <Protection id="watermark" /> -->
+
+    </Rule>
+
+    <!--
+      RULE 2 — Exclude public API surface if this is a library used by others.
+      Uncomment and adjust the pattern if needed.
+    -->
+    <!--
+    <Rule pattern="namespace('YourNamespace.PublicApi')" inherit="false">
+      <Protection id="ctrl flow" />
+      <Protection id="constants" />
+    </Rule>
+    -->
+
+  </Module>
+
+</ConfuserProject>

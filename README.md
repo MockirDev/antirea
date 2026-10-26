@@ -28,8 +28,10 @@ Antirea intercepts at step 2. A compliant agent reads the project's instruction 
 
 | Layer | Tool | What it does |
 |-------|------|-------------|
-| **L1** Agent instruction barrier | `AGENTS.md`, `CLAUDE.md`, `.cursor/rules` | Compliant agent refuses to call REA tools |
+| **L1** Agent instruction barrier | `AGENTS.md`, `CLAUDE.md`, `.cursor/rules`, `.github/copilot-instructions.md`, `.github/AGENTS.md` | Compliant agent refuses to call REA tools or any substitute analysis tool |
 | **L1** Machine-readable deny | `.re-deny` | Machine-readable signal for REA-aware tools |
+| **L1** Self-heal git hooks | `post-checkout`, `post-merge`, `pre-commit` | Barrier files restored automatically if deleted |
+| **L1** Self-heal MSBuild | `antirea-guard.targets` | Barrier files restored on every `dotnet build` (.NET projects) |
 | **L2** Terminal shim | `node_modules/.bin/rea` | Intercepts `npx rea-agents` and `rea` CLI, exit 1 |
 | **L3** JS obfuscation | `javascript-obfuscator` | All identifiers become `a`,`b`,`c`... — REA output is meaningless |
 | **L3** Source map removal | `strip-sourcemaps.js` | `.map` files never reach distribution |
@@ -78,7 +80,27 @@ Add to `package.json`:
 }
 ```
 
-### 4. Honeypot (optional)
+### 4. Git hooks — self-heal (recommended)
+
+Install git hooks so barrier files restore themselves if deleted:
+
+**Linux/macOS:**
+```bash
+sh templates/hooks/antirea-hooks-install.sh
+```
+
+**Windows:**
+```powershell
+templates\hooks\antirea-hooks-install.cmd
+```
+
+After installation, `AGENTS.md`, `CLAUDE.md`, `.re-deny`, `.cursor/rules`, and `.github/copilot-instructions.md` are automatically restored after every `git checkout`, `git pull`, and `git commit`.
+
+### 5. MSBuild self-heal (.NET projects)
+
+Copy `templates/hardening/antirea-guard.targets` to the project root as `Directory.Build.targets`. MSBuild picks it up automatically — no import needed. Every `dotnet build` will restore barrier files if missing.
+
+### 6. Honeypot (optional)
 
 **JavaScript:** Copy `templates/honeypot-js.js` to your project with the name matching the `"main"` field in `package.json` (e.g. `app.js`, `bundle.js`).
 
@@ -110,14 +132,21 @@ cc -dynamiclib -o libcore.dylib templates/honeypot-native.c
 antirea/
 ├── SKILL.md                                  ← Skill definition (main workflow)
 ├── README.md                                 ← This file
+├── LICENSE                                   ← MIT license
 └── templates/
-    ├── agents-inject.md                      ← Block to add to AGENTS.md/CLAUDE.md
+    ├── agents-inject.md                      ← Block to add to AGENTS.md/CLAUDE.md (covers REA + decompilers)
     ├── re-deny                               ← .re-deny root config
     ├── honeypot-js.js                        ← JavaScript/Electron decoy file
     ├── honeypot-native.c                     ← Native binary decoy source
     ├── bin/
     │   ├── rea                               ← Unix/macOS terminal shim
     │   └── rea.cmd                           ← Windows terminal shim
+    ├── hooks/                                ← Layer 1 self-heal: git hooks
+    │   ├── post-checkout                     ← restores barrier files after git checkout
+    │   ├── post-merge                        ← restores barrier files after git pull/merge
+    │   ├── pre-commit                        ← restores and stages barrier files before commit
+    │   ├── antirea-hooks-install.sh          ← installer (Linux/macOS)
+    │   └── antirea-hooks-install.cmd         ← installer (Windows)
     ├── rea-agents-shim/                      ← Strong npx blocker: local npm package
     │   ├── package.json                      ← name: "rea-agents", version: 999.0.0
     │   └── bin/
@@ -131,6 +160,9 @@ antirea/
     │   ├── antirea-ipc-hash.js               ← prebuild: hashes Electron IPC channel names
     │   └── antirea-strip-rust.sh             ← release: removes Rust .dep-v0 section
     └── hardening/
+        ├── agents-inject.md                  ← (same as templates/agents-inject.md)
+        ├── antirea-guard.targets             ← MSBuild self-heal target (use as Directory.Build.targets)
+        ├── confuserex-antirea.crproj         ← ConfuserEx project template (.NET)
         ├── obfuscator.config.js              ← javascript-obfuscator configuration
         ├── proguard-antirea.pro              ← Android ProGuard/R8 rules
         ├── cmake-hardening.cmake             ← CMake release hardening flags

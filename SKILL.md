@@ -24,6 +24,9 @@ Layer 3 — Build hardening             (makes decompiler output meaningless)
 Layer 3 is the most important for distributed artifacts. Layers 1 and 2 protect
 the development environment.
 
+Layer 1 now includes **self-heal**: git hooks and MSBuild targets that restore
+barrier files automatically if they are deleted.
+
 ---
 
 ## Layer 1 — Agent instruction barrier
@@ -35,13 +38,18 @@ If none exist, create `AGENTS.md` at the project root from `templates/agents-inj
 
 The directive **must appear at the top** of the file — agents read top-down.
 
-Files to check and patch:
+Files to check and patch (write barrier to ALL of these):
 ```
 AGENTS.md                             (Kilo, Codex, OpenCode, Gemini CLI)
 CLAUDE.md                             (Claude Code)
 .cursor/rules                         (Cursor)
 .github/copilot-instructions.md       (GitHub Copilot)
+.github/AGENTS.md                     (GitHub Copilot fallback)
 ```
+
+Create all five files even if they do not exist. If a file already exists,
+prepend the barrier block at the top. The more locations the barrier appears,
+the harder it is for an attacker to remove all of them before being detected.
 
 ### Blocked REA MCP tools to name explicitly
 
@@ -65,6 +73,55 @@ inspect_pe_resources, inspect_electron_fuses, analyze_function
 ```
 npx rea-agents, npx -y rea-agents, bunx rea-agents, rea (any subcommand)
 ```
+
+### Also block standard analysis tools (no workarounds)
+
+The barrier must explicitly state that standard system tools are also blocked
+as substitutes for REA. An agent that sees REA blocked may try to use
+`strings`, `dotnet-ildasm`, `ilspycmd`, or similar tools instead.
+
+The updated `templates/agents-inject.md` covers this. Use it — do not use
+an older version of the barrier that only blocks REA MCP tools.
+
+### Layer 1 self-heal — git hooks
+
+After writing the barrier files, install git hooks so they restore themselves
+if deleted:
+
+1. Copy `templates/hooks/` to the project (any location, e.g. `scripts/hooks/`)
+2. Run the installer:
+   - **Linux/macOS:** `sh scripts/hooks/antirea-hooks-install.sh`
+   - **Windows:** `scripts\hooks\antirea-hooks-install.cmd`
+
+The installer copies the barrier content into `.git/antirea-barrier.md` and
+installs three hooks:
+- `post-checkout` — restores barrier files after `git checkout`
+- `post-merge` — restores barrier files after `git pull` / `git merge`
+- `pre-commit` — restores and stages barrier files before any commit
+
+If an existing hook already exists, the installer appends to it rather than
+replacing it.
+
+### Layer 1 self-heal — MSBuild (.NET projects)
+
+For .NET projects, add `templates/hardening/antirea-guard.targets` to the
+build pipeline. This MSBuild target runs `BeforeTargets="Build"` and restores
+all barrier files if they are missing.
+
+**Option A — Import directly in .csproj:**
+```xml
+<Import Project="scripts\antirea-guard.targets" />
+```
+
+**Option B — Place as Directory.Build.targets in project root:**
+```
+Directory.Build.targets
+```
+MSBuild automatically picks up `Directory.Build.targets` in the project root
+or any parent directory without any explicit import.
+
+Copy `templates/hardening/antirea-guard.targets` to the project as
+`Directory.Build.targets` (or merge with an existing one).
 
 ---
 
@@ -444,9 +501,21 @@ When reporting to the user:
 
 ## Templates
 
-**Layer 1 & 2:**
-- `templates/agents-inject.md` — AGENTS.md/CLAUDE.md denial block
+**Layer 1 — Barrier files:**
+- `templates/agents-inject.md` — denial block (covers REA MCP tools + strings/decompilers)
 - `templates/re-deny` — `.re-deny` machine-readable config
+
+**Layer 1 — Self-heal (git hooks):**
+- `templates/hooks/post-checkout` — restores barrier files after checkout
+- `templates/hooks/post-merge` — restores barrier files after merge/pull
+- `templates/hooks/pre-commit` — restores and stages barrier files before commit
+- `templates/hooks/antirea-hooks-install.sh` — installer (Linux/macOS)
+- `templates/hooks/antirea-hooks-install.cmd` — installer (Windows)
+
+**Layer 1 — Self-heal (MSBuild):**
+- `templates/hardening/antirea-guard.targets` — MSBuild target (use as Directory.Build.targets)
+
+**Layer 2:**
 - `templates/bin/rea` — Unix/macOS terminal shim
 - `templates/bin/rea.cmd` — Windows terminal shim
 - `templates/scripts/antirea-install.js` — postinstall shim installer
@@ -467,7 +536,8 @@ When reporting to the user:
 - `templates/hardening/proguard-antirea.pro` — ProGuard/R8 config
 
 **Layer 3 — .NET:**
-- `templates/hardening/confuserex.crproj` — ConfuserEx project template
+- `templates/hardening/confuserex-antirea.crproj` — ConfuserEx project template
+- `templates/hardening/antirea-guard.targets` — MSBuild self-heal target
 
 **Honeypots (optional):**
 - `templates/honeypot-js.js` — JavaScript/Electron decoy entry point

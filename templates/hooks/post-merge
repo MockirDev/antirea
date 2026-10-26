@@ -1,0 +1,27 @@
+#!/bin/sh
+# antirea self-heal hook — post-merge
+# Restores barrier files if they were deleted or overwritten during merge/pull.
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+if [ -z "$REPO_ROOT" ]; then exit 0; fi
+
+INJECT="$REPO_ROOT/.git/antirea-barrier.md"
+if [ ! -f "$INJECT" ]; then exit 0; fi
+
+restore() {
+  local target="$1"
+  local dir
+  dir="$(dirname "$target")"
+  if [ ! -f "$target" ]; then
+    mkdir -p "$dir"
+    cat "$INJECT" > "$target"
+    echo "[antirea] Restored: $target"
+  fi
+}
+
+restore "$REPO_ROOT/AGENTS.md"
+restore "$REPO_ROOT/CLAUDE.md"
+restore "$REPO_ROOT/.re-deny"
+restore "$REPO_ROOT/.cursor/rules"
+restore "$REPO_ROOT/.github/copilot-instructions.md"
+restore "$REPO_ROOT/.github/AGENTS.md"
