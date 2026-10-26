@@ -204,4 +204,4 @@ Useful contributions:
 
 ## License
 
-MIT
+[MIT](LICENSE)
