@@ -1,6 +1,11 @@
 ---
 name: antirea
-description: Protect a project from AI-driven reverse engineering tools like REA. Applies three complementary layers — agent instruction barriers, terminal shims, and build hardening — to make REA's output meaningless even when it runs. Use when a project owner wants maximum protection against REA-based analysis at every stage: development, CI, and distribution.
+description: >-
+  Protect a project from AI-driven reverse engineering tools like REA. Applies
+  three complementary layers—agent instruction barriers, terminal shims, and
+  build hardening—to make REA's output less useful even when it runs. Use when
+  a project owner wants protection against REA-based analysis during
+  development, CI, and distribution.
 ---
 
 # ANTIREA
